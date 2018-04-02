@@ -5,6 +5,7 @@ import pandas as pd
 from keras.models import Sequential
 from keras.layers import Embedding, Conv1D, GlobalMaxPool1D, Dropout, Dense, Activation
 from keras.callbacks import CSVLogger
+import sklearn.preprocessing as prep
 
 PATH = "data/tweets/influencers/*.tsv"
 PATH_SAVE = "data/tweets/predicted"
@@ -31,13 +32,15 @@ def take_files():
             data = [row for row in csv.reader(f.read().splitlines(), delimiter='\t')]
             all_data = take_tweets(data, all_data)
 
+            # if len(all_data) > 1000:
+            #     break
     return all_data
 
 
 def get_data():                     #divide data to training, validating and test data
 
-    #data = take_files()
-    #np.save('data/tweets/files.npy', data)
+    # all_data = take_files()
+    #np.save('data/tweets/files.npy', all_data)
     path = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'temp/files.npy')
     all_data = np.load(path)
     all_data_size = len(all_data)
@@ -69,25 +72,36 @@ def get_labels(training_data, validating_data):               #get normalized pr
     btc_df = pd.read_pickle('data/tweets/poloniex/USDT_BTC.pkl')
     btc_df_values = btc_df.values
 
-    import sklearn.preprocessing as prep
-    scaler = prep.MinMaxScaler()
-    A = np.array(scaler.fit_transform(btc_df_values))
-    scaled_time = scaler.scale_[1]
-    scaled_price = scaler.scale_[0]
-    min_price = scaler.data_min_[0]
-    A[:,1] = (A[:,1]/scaled_time) + scaler.data_min_[1]
+    # scaler = prep.MinMaxScaler()
+    # A = np.array(scaler.fit_transform(btc_df_values))
+    # scaled_time = scaler.scale_[1]
+    # scaled_price = scaler.scale_[0]
+    # min_price = scaler.data_min_[0]
+    # A[:,1] = (A[:,1]/scaled_time) + scaler.data_min_[1]
 
     training_labels = []
+    index = 0
     for data in training_data:
-        index = np.where((A[:,1]<int(data[5])+86400) & (A[:,1]>int(data[5])))[0]
-        training_labels = np.append(training_labels, A[index,0])
+        index = np.where((btc_df_values[:,1]<int(data[5])+86400) & (btc_df_values[:,1]>int(data[5])))[0]
+        if btc_df_values[index+1,0] > btc_df_values[index, 0]:
+            coef = btc_df_values[index,0]/btc_df_values[index+1,0]
+        else:
+            coef = - (btc_df_values[index+1,0]/ btc_df_values[index,0])
+        training_labels = np.append(training_labels, coef)
 
     validating_labels = []
     for data in validating_data:
-        index = np.where((A[:, 1] < int(data[5]) + 86400) & (A[:, 1] > int(data[5])))[0]
-        validating_labels = np.append(validating_labels, A[index, 0])
+        index = np.where((btc_df_values[:, 1] < int(data[5]) + 86400) & (btc_df_values[:, 1] > int(data[5])))[0]
+        if btc_df_values[index + 1, 0] > btc_df_values[index, 0]:
+            coef = btc_df_values[index, 0] / btc_df_values[index + 1, 0]
+        else:
+            coef = - (btc_df_values[index + 1, 0] / btc_df_values[index, 0])
+        validating_labels = np.append(validating_labels, coef)
 
-    return training_labels, validating_labels, min_price, scaled_price
+    start_price = int(btc_df_values[index, 0])
+    start_time = int(btc_df_values[index, 1])
+
+    return training_labels, validating_labels, start_price, start_time
 
 
 def prepare_text(data):                 #prepare text for text processing
@@ -155,36 +169,66 @@ def build_model(input_dim, output_dim, input_len):
     return model
 
 
+def call_model(model, train_bag, train_labels, val_bag, val_labels):
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy'])
 
+    model.fit(train_bag, train_labels,
+              batch_size=8,
+              epochs=5,
+              validation_data=(val_bag, val_labels),
+              verbose=1,
+              callbacks=[CSVLogger('nn_models/logger_sent.csv', append=True)])
 
-a, b, c = get_data()
-a = prepare_text(a)
-b = prepare_text(b)
-c = prepare_text(c)
-x, y, min_price, scaled_price = get_labels(a, b)
-dict = make_dictionary(a)
-a_bag = make_bag_of_words(a, dict)
-b_bag = make_bag_of_words(b, dict)
-c_bag = make_bag_of_words(c, dict)
+    model.save('nn_models/sent.h5')
+
+train_data, val_data, test_data = get_data()
+
+train_data_p = prepare_text(train_data)
+val_data_p = prepare_text(val_data)
+test_data_p = prepare_text(test_data)
+
+train_labels, val_labels, curr_price, curr_time = get_labels(train_data_p, val_data_p)
+
+dict = make_dictionary(train_data_p)
+
+train_bag = make_bag_of_words(train_data_p, dict)
+val_bag = make_bag_of_words(val_data_p, dict)
+test_bag = make_bag_of_words(test_data_p, dict)
 
 input_dim = (sorted(dict.values(), reverse=True))[0]+1
 output_dim = 100
-input_len = len(a_bag[1,:])
+input_len = len(train_bag[1,:])
 model = build_model(input_dim, output_dim, input_len)
-model.compile(loss='binary_crossentropy',
-              optimizer='adam',
-              metrics=['accuracy'])
+# call_model(model, train_bag, train_labels, val_bag, val_labels)
+model.load_weights('nn_models/sent.h5')
+predicted = model.predict(test_bag)
 
-model.fit(a_bag, x,
-          batch_size=8,
-          epochs=5,
-          validation_data=(b_bag, y),
-          verbose=1,
-          callbacks=[CSVLogger('nn_models/logger_sent.csv', append=True)])
+num_tweets = 0
+coef_tweets = 0
+i = 0
+finall_coef = {}
+for data in test_data_p:
+    if(int(data[5])<curr_time):
+        num_tweets += 1
+        coef_tweets += predicted[i]
+    else:
+        coef_tweets /= num_tweets
+        finall_coef[curr_time] = coef_tweets
+        num_tweets = 0
+        coef_tweets = 0
+        curr_time += 86400
 
-model.save('nn_models/sent.h5')
-predicted = model.predict(c_bag)
-predicted2 = (predicted/scaled_price)+min_price
-print("AAAAA")
+    i += 1
 
+finall_prices = {}
+for key, value in finall_coef.items():
+    if value > 0:
+        curr_price = curr_price / value
+    else:
+        curr_price = curr_price * abs(value)
 
+    finall_prices[key] = curr_price
+
+print("AAAA")
