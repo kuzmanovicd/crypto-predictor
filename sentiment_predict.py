@@ -4,7 +4,7 @@ from nltk import tokenize
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import time
 import datetime
-PATH = "data/tweets/influencers/*.tsv"
+PATH = "/home/mica/Documents/aaa/*.tsv"
 PATH_SAVE = "data/tweets/predicted"
 
 def vader_paragraph(paragraph, analyzer):
@@ -48,7 +48,7 @@ def predict_sentiment_per_file(data):
     return all_data
 
 def take_path():
-    for path in glob.glob(PATH):
+    for path in sorted(glob.glob(PATH)):
         with open(path, 'r') as f:
             data = [row for row in csv.reader(f.read().splitlines(), delimiter='\t')]
             all_data = predict_sentiment_per_file(data)
