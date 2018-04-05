@@ -5,7 +5,7 @@ else:
     import got3 as got
 
 PATH = "data/tweets/100_inf.txt"
-PATH_INF = "data/tweets/influencers"
+PATH_INF = "data/tweets/test_tweets"
 
 
 def check_currencies(text):
@@ -70,8 +70,8 @@ def main():
     influencers = get_influencers(PATH)
     for influencer in influencers:
 
-        date1 = datetime.date(2016, 1, 1)
-        date2 = datetime.date(2018, 1, 1)
+        date1 = datetime.date(2018, 3, 1)
+        date2 = datetime.date(2018, 4, 1)
 
         tweet_criteria = got.manager.TweetCriteria().setUsername(influencer).setSince(str(date1)).setUntil(str(date2))
         tweets = got.manager.TweetManager.getTweets(tweet_criteria)
