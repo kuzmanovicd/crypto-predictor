@@ -5,7 +5,6 @@ import pandas as pd
 from keras.models import Sequential
 from keras.layers import Embedding, Conv1D, GlobalMaxPool1D, Dropout, Dense, Activation
 from keras.callbacks import CSVLogger
-import sklearn.preprocessing as prep
 
 PATH = "data/tweets/train_tweets/*.tsv"
 PATH_SAVE = "data/tweets/train_tweets_predicted"

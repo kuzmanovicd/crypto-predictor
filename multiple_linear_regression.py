@@ -1,12 +1,6 @@
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from sklearn import linear_model
-
-
-import glob, csv, sys, os, re
-import json
-import numpy as np
 
 def model(btc_values_train, btc_values_test):
 
