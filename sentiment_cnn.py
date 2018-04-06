@@ -7,8 +7,8 @@ from keras.layers import Embedding, Conv1D, GlobalMaxPool1D, Dropout, Dense, Act
 from keras.callbacks import CSVLogger
 import sklearn.preprocessing as prep
 
-PATH = "data/tweets/influencers/*.tsv"
-PATH_SAVE = "data/tweets/predicted"
+PATH = "data/tweets/train_tweets/*.tsv"
+PATH_SAVE = "data/tweets/train_tweets_predicted"
 
 
 
@@ -27,7 +27,7 @@ def take_tweets(data, all_data):
 
 
 def take_files(FILE_PATH):
-    all_data = []                           #taking tweets from influencers, and append if bitcoin is mentioned
+    all_data = []                           #taking tweets from train_tweets, and append if bitcoin is mentioned
     for path in sorted(glob.glob(FILE_PATH)):
         with open(path, 'r') as f:
             data = [row for row in csv.reader(f.read().splitlines(), delimiter='\t')]
@@ -75,7 +75,12 @@ def get_labels(training_data, validating_data):               #get normalized pr
     br1 = 0
     br2 = 0
     for data in training_data:
-        index = np.where((btc_df_values[:,1]<int(data[5])+86400) & (btc_df_values[:,1]>int(data[5])))[0]
+        if data[5].isdigit():
+            data_time = int(data[5])
+        else:
+            data_time = int(time.mktime(datetime.datetime.strptime(data[5], "%Y-%m-%d %H:%M:%S").timetuple()))
+
+        index = np.where((btc_df_values[:,1]<data_time+86400) & (btc_df_values[:,1]>data_time))[0]
         if btc_df_values[index+1,0] > btc_df_values[index, 0]:
             coef = [(btc_df_values[index,0]/btc_df_values[index+1,0])[0], 1]
             br1 += 1
@@ -86,7 +91,12 @@ def get_labels(training_data, validating_data):               #get normalized pr
 
     validating_labels = []
     for data in validating_data:
-        index = np.where((btc_df_values[:, 1] < int(data[5]) + 86400) & (btc_df_values[:, 1] > int(data[5])))[0]
+        if data[5].isdigit():
+            data_time = int(data[5])
+        else:
+            data_time = int(time.mktime(datetime.datetime.strptime(data[5], "%Y-%m-%d %H:%M:%S").timetuple()))
+
+        index = np.where((btc_df_values[:, 1] < data_time + 86400) & (btc_df_values[:, 1] > data_time))[0]
         if btc_df_values[index + 1, 0] > btc_df_values[index, 0]:
             coef = [(btc_df_values[index, 0] / btc_df_values[index + 1, 0])[0], 1]
             br1 += 1
@@ -161,7 +171,7 @@ def build_model(input_dim, output_dim, input_len):
 
     model = Sequential()
     model.add(Embedding(input_dim, output_dim, input_length=input_len))
-    model.add(Conv1D(filters=250, kernel_size=3, padding='valid', activation='relu', strides=1))
+    model.add(Conv1D(filters=250, kernel_size=5, padding='valid', activation='relu', strides=1))
     model.add(GlobalMaxPool1D())
     model.add(Dropout(0.5))
     model.add(Dense(2))
@@ -176,7 +186,7 @@ def call_model(model, train_bag, train_labels, val_bag, val_labels):
 
     model.fit(train_bag, train_labels,
               batch_size=8,
-              epochs=5,
+              epochs=15,
               validation_data=(val_bag, val_labels),
               verbose=1,
               callbacks=[CSVLogger('nn_models/logger_sent.csv', append=True)])
@@ -199,10 +209,10 @@ def check_results(curr_time, curr_price, predicted):
 
         if (data_time < curr_time):
             num_tweets += 1
-            if predicted[1][i] > 0:
-                coef_tweets += predicted[0][i]
+            if predicted[i][1] > 0.5:
+                coef_tweets += predicted[i][0]
             else:
-                coef_tweets -= predicted[0][i]
+                coef_tweets -= predicted[i][0]
         else:
             if num_tweets != 0:
                 coef_tweets /= num_tweets
@@ -236,14 +246,20 @@ def save_results(results, FILE_PATH):
             for d in data:
                 text = d[1].lower()
                 if ("bitcoin" or "btc") in text:
-                    d = d[:-1]
-                    d.extend(results[i])
-                    all_data = np.append(all_data, d).reshape(-1, 15)
-                    i += 1
+                    if len(results) > i:
+                        d = d[:-1]
+                        d.extend(results[i])
+                        all_data = np.append(all_data, d).reshape(-1, 15)
+                        i += 1
+                    else:
+                        print("wrong!")
 
         print(path)
-
-        with open(path, 'w') as csvfile:
+        if "test_tweets_predicted" in path:
+            path2 = path.replace('test_tweets_predicted', 'btc_final')
+        else:
+            path2 = path.replace('train_tweets_predicted', 'btc_final')
+        with open(path2, 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow(['currency', 'tweet', 'username', 'favorites', 'retweets', 'date', 'id', 'permalink',
                              'geo', 'hashtags', 'mentions', 'lex_sent', 'vader_sent', 'cnn_sent', 'cnn_pos_neg'])
@@ -253,8 +269,21 @@ def save_results(results, FILE_PATH):
 
 
 def save_test_results(predicted, FILE_PATH):
-    model.load_weights('nn_models/sent.h5')
-    predicted = model.predict(test_bag)
+
+    i = 0
+    br1 = 0
+    br2 = 0
+    for pred in predicted:
+        if pred[1]>0.5:
+            predicted[i][1] = 1
+            br1 += 1
+        else:
+            predicted[i][1] = -1
+            br2 += 1
+        i += 1
+
+    print(br1)
+    print(br2)
 
     save_results(predicted, FILE_PATH)
 
@@ -270,7 +299,8 @@ if __name__ == '__main__':
 
     train_labels, val_labels, curr_price, curr_time = get_labels(train_data_p, val_data_p)
 
-    #save_results(train_labels, "data/tweets/predicted/*.tsv")
+    save_labels = np.vstack([train_labels, val_labels])
+    # save_results(save_labels, "data/tweets/train_tweets_predicted/*.tsv")
 
     dict = make_dictionary(train_data_p)
 
@@ -282,8 +312,9 @@ if __name__ == '__main__':
     output_dim = 100
     input_len = len(train_bag[1,:])
     model = build_model(input_dim, output_dim, input_len)
-    call_model(model, train_bag, train_labels, val_bag, val_labels)
+    # call_model(model, train_bag, train_labels, val_bag, val_labels)
     model.load_weights('nn_models/sent.h5')
     predicted = model.predict(test_bag)
-    check_results(curr_time, curr_price, predicted)
-    #save_test_results(predicted, "data/tweets/test_predicted/*.tsv")
+    # save_test_results(train_tweets_predicted, "data/tweets/test_tweets_predicted/*.tsv")
+    finall_coef, finall_prices = check_results(curr_time, curr_price, predicted)
+    print("Done!")

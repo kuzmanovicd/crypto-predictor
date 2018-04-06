@@ -4,8 +4,8 @@ from nltk import tokenize
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import time
 import datetime
-PATH = "data/tweets/influencers/*.tsv"
-PATH_SAVE = "data/tweets/predicted"
+PATH = "data/tweets/test_tweets/*.tsv"
+PATH_SAVE = "data/tweets/test_tweets_predicted"
 
 def vader_paragraph(paragraph, analyzer):
     text = paragraph
