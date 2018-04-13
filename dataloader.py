@@ -119,7 +119,7 @@ def normalize_fit_transform(X, fields=None):
     Normalize data 
     """
     global scaler 
-    scaler = prep.MinMaxScaler()
+    scaler = prep.MinMaxScaler(feature_range=(0,1))
     if fields is not None:
         X = scaler.fit_transform(X[fields])
     else:
@@ -155,6 +155,13 @@ def fetch_batch_size_random(X, Y, batch_size):
     idxes = np.random.randint(X.shape[0], size=batch_size)
     X_out = np.array(X[idxes]).transpose((1, 0, 2))
     Y_out = np.array(Y[idxes]).transpose((1, 0, 2))
+    return X_out, Y_out
+
+def fetch_batch_size_random_keras(X, Y, batch_size):
+    assert X.shape[0] == Y.shape[0], (X.shape, Y.shape)
+    idxes = np.random.randint(X.shape[0], size=batch_size)
+    X_out = np.array(X[idxes])
+    Y_out = np.array(Y[idxes])
     return X_out, Y_out
 
 X_train = []
@@ -196,6 +203,22 @@ def generate_data_tf(isTrain, batch_size):
     else:
         return fetch_batch_size_random(X_test,  Y_test,  batch_size)
 
-def generate_data_keras(input_seq_length, output_seq_length):
-    X_train, Y_train, X_test, Y_test = prepare_data(input_seq_length, output_seq_length, sliding_window=True, step_size=5)
+def generate_data_keras_batch(isTrain, batch_size):
+    global Y_train
+    global X_train
+    global X_test
+    global Y_test
+    
+    if len(Y_test) == 0:
+        X_train, Y_train, X_test, Y_test = prepare_data(INPUT_SEQ_LENGTH, OUTPUT_SEQ_LENGTH, sliding_window=True, step_size=5)
+
+    if isTrain:
+        return fetch_batch_size_random_keras(X_train, Y_train, batch_size)
+    else:
+        return fetch_batch_size_random_keras(X_test, Y_test, batch_size)
+
+def generate_data_keras(input_seq_length, output_seq_length, step_size=5):
+    INPUT_SEQ_LENGTH = input_seq_length
+    OUTPUT_SEQ_LENGTH = output_seq_length
+    X_train, Y_train, X_test, Y_test = prepare_data(input_seq_length, output_seq_length, sliding_window=True, step_size=step_size)
     return X_train, Y_train, X_test, Y_test
