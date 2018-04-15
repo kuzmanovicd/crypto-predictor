@@ -10,9 +10,17 @@ from tempfile import TemporaryFile
 
 DATA_MARKET = 'data/poloniex/'
 DATA_TWITTER = 'data/twitter/sentiment/'
+DATA_BLOCKCHAIN = 'data/blockchain/'
 
 INPUT_SEQ_LENGTH = 288 # 3*24*60/5
-OUTPUT_SEQ_LENGTH = 48 # 4 hours
+OUTPUT_SEQ_LENGTH = 24 # 4 hours
+
+DROP_COLUMNS = ['ltc_close', 'ltc_volume', 'ltc_quoteVolume', 'eth_close', 'eth_volume', 'eth_quoteVolume', 'xrp_close', 'xrp_volume', 'xrp_quoteVolume']
+
+USE_TWITTER = True
+USE_BLOCKCHAIN = True
+
+TARGET_VARIABLE = 'btc_close'
 
 class PastSampler:
 
@@ -105,14 +113,27 @@ def load_data():
     
     """    
     price_data = pd.read_pickle(DATA_MARKET + 'combined.pkl')
-    sentiment_data = pd.read_pickle(DATA_TWITTER + 'btc_expanded.pkl')
+
+    currency = TARGET_VARIABLE.split('_')[0]
+
+    sentiment_data = pd.read_pickle(DATA_TWITTER + currency + '_expanded.pkl')
+    blockchain_data = pd.read_pickle(DATA_BLOCKCHAIN + currency + '_blockchain.pkl')
+
+    #price_data = price_data.drop(columns=DROP_COLUMNS)
     
     min_date = min(sentiment_data['date'])
     max_date = max(sentiment_data['date'])
     
     price_data = price_data.query('@min_date <= date <= @max_date')
+    data = price_data
+
+    if USE_TWITTER:
+        data = pd.merge(data, sentiment_data, how='inner', left_on='date', right_on='date')
     
-    return pd.merge(price_data, sentiment_data, how='inner', left_on='date', right_on='date')
+    if USE_BLOCKCHAIN:
+        data = pd.merge(data, blockchain_data, how='inner', left_on='date', right_on='date')
+    
+    return data
 
 def normalize_fit_transform(X, fields=None):
     """
@@ -171,6 +192,8 @@ Y_test = []
 
 def prepare_data(input_seq_length, output_seq_length, sliding_window=True, step_size=5):
     data = load_data()
+    cols = [TARGET_VARIABLE] + [col for col in data if col != TARGET_VARIABLE]
+    data = data[cols]
     train, test = split_data(data)
 
     train = train.drop(columns=['date'])
@@ -179,7 +202,7 @@ def prepare_data(input_seq_length, output_seq_length, sliding_window=True, step_
     train, _ = normalize_fit_transform(train)
     test = normalize_transform(test)
 
-    ps = PastSampler(input_seq_length, output_seq_length, sliding_window=True, step_size=5)
+    ps = PastSampler(input_seq_length, output_seq_length, sliding_window=True, step_size=step_size)
 
     X_train, Y_train = ps.transform(train[:,None,:])
     X_test, Y_test = ps.transform(test[:,None,:])
