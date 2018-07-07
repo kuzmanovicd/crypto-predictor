@@ -31,7 +31,6 @@ def take_files(FILE_PATH):
         with open(path, 'r') as f:
             data = [row for row in csv.reader(f.read().splitlines(), delimiter='\t')]
             all_data = take_tweets(data, all_data)
-        print(path)
     return all_data
 
 
@@ -62,6 +61,7 @@ def get_currency_prices():
     #         #print(df.columns)
     #         df.to_pickle('data/tweets/poloniex/' + c + '.pkl')
     #         print('Successfully downloaded', c)
+
 
 
 def get_labels(training_data, validating_data):               #get normalized prices for specific tweet on specific date
@@ -137,7 +137,7 @@ def make_dictionary(data):
     i = 1
     for text in data[:,1]:
         for word in text.split():
-            if word not in dict.values():
+            if word not in dict.keys():
                 dict[word] = i
                 i += 1
     return dict
@@ -190,7 +190,7 @@ def call_model(model, train_bag, train_labels, val_bag, val_labels):
               verbose=1,
               callbacks=[CSVLogger('nn_models/logger_sent.csv', append=True)])
 
-    model.save('nn_models/sent.h5')
+    model.save('nn_models/sent2.h5')
 
 
 def check_results(curr_time, curr_price, predicted):
@@ -253,7 +253,6 @@ def save_results(results, FILE_PATH):
                     else:
                         print("wrong!")
 
-        print(path)
         if "test_tweets_predicted" in path:
             path2 = path.replace('test_tweets_predicted', 'btc_final')
         else:
@@ -312,7 +311,7 @@ if __name__ == '__main__':
     input_len = len(train_bag[1,:])
     model = build_model(input_dim, output_dim, input_len)
     # call_model(model, train_bag, train_labels, val_bag, val_labels)
-    model.load_weights('nn_models/sent.h5')
+    model.load_weights('nn_models/sent2.h5')
     predicted = model.predict(test_bag)
     # save_test_results(train_tweets_predicted, "data/tweets/test_tweets_predicted/*.tsv")
     finall_coef, finall_prices = check_results(curr_time, curr_price, predicted)
