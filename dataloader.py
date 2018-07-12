@@ -15,12 +15,38 @@ DATA_BLOCKCHAIN = 'data/blockchain/'
 INPUT_SEQ_LENGTH = 288 # 3*24*60/5
 OUTPUT_SEQ_LENGTH = 24 # 4 hours
 
-DROP_COLUMNS = ['ltc_close', 'ltc_volume', 'ltc_quoteVolume', 'eth_close', 'eth_volume', 'eth_quoteVolume', 'xrp_close', 'xrp_volume', 'xrp_quoteVolume']
+#DROP_COLUMNS = ['ltc_close', 'ltc_volume', 'ltc_quoteVolume', 'eth_close', 'eth_volume', 'eth_quoteVolume', 'xrp_close', 'xrp_volume', 'xrp_quoteVolume']
 
 USE_TWITTER = True
 USE_BLOCKCHAIN = True
 
 TARGET_VARIABLE = 'btc_close'
+
+PERIOD = 14400
+
+BLOCKCHAIN_FEATURES = [
+            #'transactions-per-second',
+            'avg-block-size',  
+            'cost-per-transaction', 
+            'difficulty', 
+            'hash-rate',
+            'market-cap',
+            'median-confirmation-time',
+            'transaction-fees',
+            'transaction-fees-usd',
+            'n-transactions-per-block',
+            'miners-revenue',
+            'n-unique-addresses',
+            'n-transactions',
+            'n-transactions-total',
+            #'mempool-growth',
+            #'mempool-count',
+            #'mempool-size',
+            'n-transactions-excluding-popular',
+            'n-transactions-excluding-chains-longer-than-100',
+            'output-volume',
+            'estimated-transaction-volume',
+            'estimated-transaction-volume-usd']
 
 class PastSampler:
 
@@ -50,7 +76,12 @@ class PastSampler:
         #print('B shape', B.shape)
         return B[:, :ci], B[:, ci:, 0:1] #Sample matrix, Target matrix
 
-
+def to_timestamp_full(dates):
+    try:
+        return [int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S").timetuple())) for s in dates]
+    except:
+        print('Problem with dates', dates[1])
+    
 def date_to_timestamp(s):
     return time.mktime(datetime.datetime.strptime(s, "%d/%m/%Y").timetuple())
     
@@ -63,10 +94,29 @@ def split_data(data, s='01/03/2018'):
     test = data.query('date>@split_time')
     return train, test
 
-def download_data():
+def download_btc_blockchain():
+    #url = 'https://api.blockchain.info/charts/$C?timespan=1week&sampled=false&format=csv'
+    url = 'https://api.blockchain.info/charts/$C?timespan=3years&sampled=false&format=csv'
+
+    urls = [url.replace('$C', c) for c in BLOCKCHAIN_FEATURES]
+    data = pd.DataFrame()
+    for i, c in enumerate(BLOCKCHAIN_FEATURES):
+        temp_df = pd.read_csv(urls[i], names=['date'] + [BLOCKCHAIN_FEATURES[i]])
+        if not i:
+            data = temp_df
+        else:
+            data = pd.merge(data, temp_df, how='inner', left_on='date', right_on='date')
+        print('reading', c, 'with size of', data[c].count())
+    data['date_readable'] = data['date']    
+    data['date'] = to_timestamp_full(data['date'])
+    data.to_pickle(DATA_BLOCKCHAIN + 'btc_combined.pkl')
+    print('Done...')
+
+
+def download_data(period=300):
     # connect to poloniex's API
     CURRENCIES = ['USDT_BTC', 'USDT_LTC', 'USDT_ETH', 'USDT_XRP']
-    url = 'https://poloniex.com/public?command=returnChartData&currencyPair=$C&start=1356998100&end=9999999999&period=300'
+    url = 'https://poloniex.com/public?command=returnChartData&currencyPair=$C&start=1356998100&end=9999999999&period=' + str(period)
     urls = [url.replace('$C', c) for c in CURRENCIES]
 
     for i, c in enumerate(CURRENCIES):
@@ -74,7 +124,7 @@ def download_data():
             r = url.read()
             d = json.loads(r.decode())
             df = pd.DataFrame(d)
-            df = df.drop(columns=['high', 'low', 'open', 'weightedAverage'])
+            #df = df.drop(columns=['high', 'low', 'open', 'weightedAverage'])
             #print(df.columns)
             df.to_pickle(DATA_MARKET + c + '.pkl')
             print('Successfully downloaded', c)
@@ -118,6 +168,14 @@ def load_data():
 
     sentiment_data = pd.read_pickle(DATA_TWITTER + currency + '_expanded.pkl')
     blockchain_data = pd.read_pickle(DATA_BLOCKCHAIN + currency + '_blockchain.pkl')
+    
+    
+    #print(price_data.info())
+    #print(sentiment_data.info())
+    #print(blockchain_data.info())
+    
+    #sentiment_data = pd.read_pickle(DATA_TWITTER + currency + '_expanded.pkl')
+    #blockchain_data = pd.read_pickle(DATA_BLOCKCHAIN + currency + '_blockchain.pkl')
 
     #price_data = price_data.drop(columns=DROP_COLUMNS)
     
