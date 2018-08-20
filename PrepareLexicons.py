@@ -27,6 +27,7 @@ def pretprocess_dataset1(path):
                 tweet = re.sub(r'\w*\\.\w*', '', tweet)
                 tweet = re.sub(r'/\w*', '', tweet)
                 tweet = re.sub(r'([^\s\w]|_)+', '', tweet)  # only alfanumeric and space
+                tweet = re.sub(r'[0-9]+', '', tweet)
                 tweet = re.sub(r'\W*\b\w{18,60}\b', '', tweet)  # remove big words
                 tokenize_tweet = nltk.word_tokenize(tweet)
                 tweet = [word for word in tokenize_tweet if word not in stop_words] #remove stop words
@@ -71,6 +72,7 @@ def pretprocess_dataset23(path):
                 tweet = re.sub(r'\w*\\.\w*', '', tweet)
                 tweet = re.sub(r'/\w*', '', tweet)
                 tweet = re.sub(r'([^\s\w]|_)+', '', tweet)  # only alfanumeric and space
+                tweet = re.sub(r'[0-9]+', '', tweet)
                 tweet = re.sub(r'\W*\b\w{18,60}\b', '', tweet)  # remove big words
                 tokenize_tweet = nltk.word_tokenize(tweet)
                 tweet = [word for word in tokenize_tweet if word not in stop_words] #stop
@@ -115,6 +117,7 @@ def pretprocess_dataset4(path):
                 tweet = re.sub(r'\w*\\.\w*', '', tweet)
                 tweet = re.sub(r'/\w*', '', tweet)
                 tweet = re.sub(r'([^\s\w]|_)+', '', tweet)  # only alfanumeric and space
+                tweet = re.sub(r'[0-9]+', '', tweet)
                 tweet = re.sub(r'\W*\b\w{18,60}\b', '', tweet)  # remove big words
                 tokenize_tweet = nltk.word_tokenize(tweet)
                 tweet = [word for word in tokenize_tweet if word not in stop_words] #stop word
@@ -160,6 +163,7 @@ def pretprocess_dataset5(path):
             tweet = re.sub(r'\w*\\.\w*', '', tweet)
             tweet = re.sub(r'/\w*', '', tweet)
             tweet = re.sub(r'([^\s\w]|_)+', '', tweet)  # only alfanumeric and space
+            tweet = re.sub(r'[0-9]+', '', tweet)
             tweet = re.sub(r'\W*\b\w{18,60}\b', '', tweet)  # remove big words
             tokenize_tweet = nltk.word_tokenize(tweet)
             tweet = [word for word in tokenize_tweet if word not in stop_words]

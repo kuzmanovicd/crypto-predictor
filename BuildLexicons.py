@@ -6,6 +6,8 @@ dataset3 = 'data/tweets/lexicon_dataset/sent140_2_new.tsv'
 dataset4 = 'data/tweets/lexicon_dataset/twitter2_new.tsv'
 dataset5 = 'data/tweets/lexicon_dataset/twitter4242_new.tsv'
 
+all_words = dict()
+
 def build_lexion_dataset(path):
     sentWords = dict()
     with open(path, 'r') as csvfile:
@@ -20,6 +22,12 @@ def build_lexion_dataset(path):
                 if word in sentWords:
                     curr_sen += sentWords[word]
                 sentWords[word] = curr_sen
+
+                curr_sen = sent
+                if word in all_words:
+                    curr_sen += all_words[word]
+
+                all_words[word] = curr_sen
 
 
     sorted_neg = sorted(sentWords.items(), key=operator.itemgetter(1))
@@ -56,3 +64,14 @@ build_lexion_dataset(dataset2)
 build_lexion_dataset(dataset3)
 build_lexion_dataset(dataset4)
 build_lexion_dataset(dataset5)
+
+all_neg = sorted(all_words.items(), key=operator.itemgetter(1))
+all_pos = sorted(all_words.items(), key=operator.itemgetter(1), reverse=True)
+all_path = "data/tweets/lexicons/all_words.tsv"
+
+with open(all_path, 'w') as csvfile:
+    writer = csv.writer(csvfile, delimiter='\t')
+    for i in range(0,25):
+        writer.writerow([all_pos[i][0], 1])
+        writer.writerow([all_neg[i][0], -1])
+
