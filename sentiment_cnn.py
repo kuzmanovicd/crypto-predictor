@@ -6,8 +6,8 @@ from keras.models import Sequential
 from keras.layers import Embedding, Conv1D, GlobalMaxPool1D, Dropout, Dense, Activation
 from keras.callbacks import CSVLogger
 
-PATH = "data/tweets/train_tweets/*.tsv"
-PATH_SAVE = "data/tweets/train_tweets_predicted"
+PATH = "data/sentiment_analysis/tweets/*.tsv"
+PATH_SAVE = "data/sentiment_analysis/tweets_predicted"
 
 
 
@@ -16,29 +16,20 @@ if sys.version_info[0] == 3:
 else:
     from urllib import urlopen
 
-def take_tweets(data, all_data):
-    for d in data:
-        text = d[1].lower()
-        # if ("bitcoin" or "btc" or "litecoin" or "ltc" or "ethereum" or "etc" or "ripple" or "xrp") in text:
-        if ("bitcoin" or "btc") in text:
-            all_data = np.append(all_data, d).reshape(-1,11)
-    return all_data
-
 
 def take_files(FILE_PATH):
     all_data = []                           #taking tweets from train_tweets, and append if bitcoin is mentioned
     for path in sorted(glob.glob(FILE_PATH)):
         with open(path, 'r') as f:
-            data = [row for row in csv.reader(f.read().splitlines(), delimiter='\t')]
-            all_data = take_tweets(data, all_data)
+            all_data.extend([row for row in csv.reader(f, delimiter='\t') if row[0] != ""])
     return all_data
 
 
 def get_data():                     #divide data to training, validating and test data
 
-    #all_data = take_files(PATH)
+    all_data = take_files(PATH)
     path = os.path.join(os.path.abspath(os.path.join(os.getcwd(), os.pardir)), 'temp/files.npy')
-    #np.save(path, all_data)
+    np.save(path, all_data)
     all_data = np.load(path)
     all_data_size = len(all_data)
     training_data = all_data[:int(all_data_size*0.9),:]

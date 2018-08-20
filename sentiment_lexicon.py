@@ -1,6 +1,6 @@
 import csv,re,os
 import glob
-PATH = "data/tweets/lexicons/*.tsv"
+PATH = "data/sentiment_analysis/lexicons/*.tsv"
 
 def check_sentiment_word(word, PATH):
     with open(PATH, 'r') as f:

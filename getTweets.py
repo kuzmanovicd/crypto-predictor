@@ -4,8 +4,8 @@ if sys.version_info[0] < 3:
 else:
     import got3 as got
 
-PATH = "data/tweets/100_inf.txt"
-PATH_INF = "data/tweets/test_tweets"
+PATH = "data/sentiment_analysis/100_inf.txt"
+PATH_INF = "data/sentiment_analysis/tweets"
 
 
 def check_currencies(text):
@@ -20,6 +20,7 @@ def check_currencies(text):
     if ("ripple" or "xrp") in lower_text:
         mentions += "ripple "
     return mentions
+
 
 def adapt_tweet(tweet):
     text = str(tweet.text.encode('utf-8'))
@@ -50,11 +51,6 @@ def save_tweet(tweet, FILE_PATH):
 def adapt_dates(start_timestamp):
     dt1 = datetime.datetime.fromtimestamp(start_timestamp).strftime('%Y-%m-%d')
     return dt1
-
-
-def date_range(start_date, end_date):
-    for n in range(int((end_date - start_date).days)):
-        yield start_date + datetime.timedelta(n)
 
 
 def get_influencers(P):
