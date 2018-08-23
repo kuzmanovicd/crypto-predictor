@@ -105,7 +105,7 @@ def call_model(model, train_bag, train_labels, val_bag, val_labels):
 
     model.fit(train_bag, train_labels,
               batch_size=8,
-              epochs=30,
+              epochs=50,
               validation_data=(val_bag, val_labels),
               verbose=1,
               callbacks=[CSVLogger('nn_models/logger_sent.csv', append=True)])
